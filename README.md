@@ -1,2 +1,2 @@
-# PluggedIRC
-a super simple and modulable IRC server
+# INSTABLE
+# NOT SAGE TO USE AT ALL
