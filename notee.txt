@@ -1,0 +1,25 @@
+>wyene!wyene@80.214.158.86 JOIN :#a..:Mara.server.com 353 
+>wyene = #a :@wyene ..:Mara.server.com 366 wyene
+>#a :End of /NAMES list...
+
+<mode #a
+
+>WHO #a
+
+
+
+
+http://chi.cs.uchicago.edu/chirc/irc_examples.html
+
+
+
+
+http://www.irc.org/tech_docs/005.html
+
+
+
+ping irc
+
+sever send an ping with an random number to verify that the client is still connected
+the client must send a pong with the same number to the server
+
