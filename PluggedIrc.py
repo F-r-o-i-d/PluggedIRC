@@ -4,6 +4,8 @@ import time
 import threading
 import datetime
 import MessageSaver
+import ModuleHandler
+import Message
 
 class Log:
     def __init__(self):
@@ -29,6 +31,7 @@ class Server:
         
         self.ServerConfig["host"] = f"irc.{self.ServerConfig['name']}.com"
         self.channels = {}
+        self.ModuleManager = ModuleHandler.ModuleHandler()
     def Forever(self):
         self.s.bind(('0.0.0.0', 6667))
         self.s.listen(5)
@@ -36,6 +39,16 @@ class Server:
         self.log.print('## IRC Server v1.0')
         self.log.print('####################')
         self.log.print('Listening on port 6667')
+        self.ModuleManager.LoadAllModules()
+
+        if self.ModuleManager.GetNumModules() == 0:
+            self.log.print('No modules loaded')
+        else:
+            if self.ModuleManager.GetNumModules() > 1:
+                self.log.print(f'Loading {self.ModuleManager.GetNumModules()} modules')
+            else:
+                self.log.print(f'Loading {self.ModuleManager.GetNumModules()} module')
+            self.ModuleManager.InitModules()
         while True:
             conn, addr = self.s.accept()
             self.log.print('Connected by' + str(addr))
@@ -75,8 +88,14 @@ class Server:
             print(" -> " + channel)
 
             if channel in self.conns[conn]["channels"] and self.conns[conn]["nick"] != author:
-                self.log.print(f"Broadcasting to {self.conns[conn]['nick']} in {channel}")
-                conn.send(message.encode('utf-8'))
+                self.log.print(f"Broadcasting {message} to {self.conns[conn]['nick']} in {channel}")
+                try:
+                    conn.send( b'\r\n' + message.encode('utf-8') + b'\r\n')
+                except:
+                    self.log.print(f"Error sending message to {self.conns[conn]['nick']}")
+                    self.conns.pop(conn)
+                    continue
+
     def CommandHandler(self, conn, data):
         if data.startswith('NICK'):
             #check if nick is valid
@@ -153,7 +172,7 @@ class Server:
             # break
             pass
         elif data.startswith('CAP'):
-            conn.sendall('CAP * ACK :multi-prefix sasl'.encode('utf-8'))
+            conn.sendall(':CAP * ACK :multi-prefix sasl'.encode('utf-8'))
         elif data.startswith('LIST'):
             conn.sendall(f":{self.ServerConfig['name']} 321 {self.conns[conn]['nick']} Channel :Users Name".encode('utf-8'))
             for channel in self.channels:
@@ -164,6 +183,9 @@ class Server:
             conn.sendall(f":{self.ServerConfig['name']} 323 {self.conns[conn]['nick']} :End of /LIST".encode('utf-8'))
         elif data.startswith('PRIVMSG'):
             if data.split(' ')[1].startswith('#'):
+                self.log.print(f"Sending message to all Plugins")
+                msg = Message.Message(data, data.split(' ')[1], self.conns[conn]['nick'], conn)
+                self.ModuleManager.messageEvent(msg)
                 try:
                     for conn2 in self.channels[data.split(' ')[1]]['Users']:
                         for nick in conn2:
@@ -176,8 +198,8 @@ class Server:
         elif data.startswith('WHO'):
             for conn2 in self.conns:
                 if conn2 != conn:
-                    # conn2.sendall(data.encode('utf-8'))
-                    pass
+                    if data.split(" ")[1] in self.conns[conn2]['channels']:
+                        conn.sendall(f":{self.ServerConfig['name']} 352 {self.conns[conn]['nick']} {data.split(' ')[1]} {self.conns[conn2]['user']} {self.conns[conn2]['host']} {self.ServerConfig['name']} {self.conns[conn2]['nick']} H :0 {self.conns[conn2]['realname']}".encode('utf-8'))
         else:
             print(data)
 
